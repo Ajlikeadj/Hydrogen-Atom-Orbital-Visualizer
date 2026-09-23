@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="color-scheme" content="dark" />
+<title>Hydrogen Atom Orbital Visualizer ⚛️</title>
+
+<!-- Plotly for interactive scientific graphs -->
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+<!-- Stable global Three.js build. No external OrbitControls needed. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<!-- Page styles -->
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+
+<body>
+
+<a class="skip-link" href="#mainContent">Skip to visualizer</a>
+
+<header>
+  <div class="header-inner">
+    <div>
+      <h1>⚛ Hydrogen Atom Orbital Visualizer (By Ajlikeadj)</h1>
+      <p>
+        Interactive visualization of hydrogen-atom electron orbitals, radial probability distributions,
+        cross-sections, and 3D electron probability clouds.
+      </p>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="randomBtn" title="Pick a random valid orbital (shortcut: R)">🎲 Random orbital</button>
+      <button class="icon-btn" id="copyLink" title="Copy a link that restores this exact view">🔗 Copy link</button>
+      <button class="icon-btn" id="resetSettingsBtn" title="Restore the visualizer's default display settings">↺ Reset view</button>
+      <button class="icon-btn" id="helpBtn" aria-haspopup="dialog" title="Open keyboard shortcuts and a quick guide">? Help</button>
+    </div>
+  </div>
+</header>
+
+<main id="mainContent" tabindex="-1">
+  <!-- LEFT COLUMN: Controls + Info -->
+  <section>
+    <div class="card controls">
+      <h2>Quantum Numbers</h2>
+
+      <label for="n">Principal quantum number <i>n</i> &nbsp;(n ≥ 1)</label>
+      <div class="range-row">
+        <input type="range" id="nRange" min="1" max="7" step="1" value="2" />
+        <input type="number" id="n" min="1" max="7" step="1" value="2" />
+      </div>
+
+      <label for="l">Azimuthal quantum number <i>l</i> &nbsp;(0 ≤ l ≤ n−1)</label>
+      <div class="range-row">
+        <input type="range" id="lRange" min="0" max="6" step="1" value="1" />
+        <input type="number" id="l" min="0" max="6" step="1" value="1" />
+      </div>
+
+      <label for="m">Magnetic quantum number <i>m<sub>ℓ</sub></i> &nbsp;(−l ≤ m<sub>ℓ</sub> ≤ +l)</label>
+      <div class="range-row">
+        <input type="range" id="mRange" min="-6" max="6" step="1" value="0" />
+        <input type="number" id="m" min="-6" max="6" step="1" value="0" />
+      </div>
+
+      <button class="btn" id="generateBtn">Generate Orbital</button>
+
+      <h3>Presets <span class="hint">← / → to cycle</span></h3>
+      <div class="presets" id="presets"></div>
+
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+    </div>
+
+    <div class="card">
+      <h2>Rendering</h2>
+
+      <label>3D view</label>
+      <div class="seg" id="viewSeg" style="--cols:2;">
+        <button data-mode="surface" class="active">Surface (isosurface)</button>
+        <button data-mode="density">Density (points)</button>
+      </div>
+
+      <label for="isoRange">Isosurface level: <span id="isoVal" style="color:var(--accent);font-weight:600;">12%</span> of max |ψ|</label>
+      <div class="range-row" id="isoRow">
+        <input type="range" id="isoRange" min="2" max="60" step="1" value="12" />
+        <span style="text-align:center;color:var(--muted);font-size:12px;">2% – 60%</span>
+      </div>
+
+      <label>Density point count</label>
+      <div class="seg" id="pointSeg" style="--cols:3;">
+        <button data-points="5000">5k</button>
+        <button data-points="20000" class="active">20k</button>
+        <button data-points="60000">60k</button>
+      </div>
+
+      <label>Color scheme</label>
+      <div class="seg" id="themeSeg" style="--cols:2;">
+        <button data-theme="plasma" class="active">
+          <span class="swatch" style="background:linear-gradient(90deg,#35a7ff,#ff2e88);"></span>Plasma
+        </button>
+        <button data-theme="aurora">
+          <span class="swatch" style="background:linear-gradient(90deg,#2dffb0,#7b5cff);"></span>Aurora
+        </button>
+        <button data-theme="lava">
+          <span class="swatch" style="background:linear-gradient(90deg,#ffd166,#ff3d00);"></span>Lava
+        </button>
+        <button data-theme="mono">
+          <span class="swatch" style="background:linear-gradient(90deg,#9db4ff,#e6ecff);"></span>Mono
+        </button>
+      </div>
+
+      <label class="toggle-row">
+        <span>Auto-rotate 3D cloud</span>
+        <span class="switch">
+          <input type="checkbox" id="autoRotate" />
+          <span class="track"></span>
+        </span>
+      </label>
+
+      <label class="toggle-row">
+        <span>Show axes &amp; grid</span>
+        <span class="switch">
+          <input type="checkbox" id="showHelpers" checked />
+          <span class="track"></span>
+        </span>
+      </label>
+
+      <label class="toggle-row">
+        <span>Show nucleus</span>
+        <span class="switch">
+          <input type="checkbox" id="showNucleus" checked />
+          <span class="track"></span>
+        </span>
+      </label>
+
+      <label>3D cutaway (reveal internal nodes)</label>
+      <div class="seg" id="cutawaySeg" style="--cols:4;">
+        <button data-cut="none" class="active">None</button>
+        <button data-cut="half_x">Half</button>
+        <button data-cut="quarter_xz">Quarter</button>
+        <button data-cut="half_y">Y-slice</button>
+      </div>
+
+      <label class="toggle-row">
+        <span>Show probability sphere in 3D</span>
+        <span class="switch">
+          <input type="checkbox" id="showProbSphereToggle" />
+          <span class="track"></span>
+        </span>
+      </label>
+    </div>
+
+    <div class="card">
+      <h2>Orbital Information <span class="badge" id="orbitalBadge">—</span></h2>
+
+      <div class="info-grid">
+        <div class="k">Orbital name</div><div class="v" id="infoName">—</div>
+        <div class="k">Real-orbital label</div><div class="v" id="infoLabel">—</div>
+        <div class="k">n</div><div class="v" id="infoN">—</div>
+        <div class="k">l</div><div class="v" id="infoL">—</div>
+        <div class="k">m<sub>ℓ</sub></div><div class="v" id="infoM">—</div>
+        <div class="k">|L| = √(l(l+1)) ħ</div><div class="v" id="infoLmom">—</div>
+        <div class="k">Energy Eₙ = −13.6/n² eV</div><div class="v" id="infoEnergy">—</div>
+        <div class="k">Degeneracy (n² states)</div><div class="v" id="infoDegeneracy">—</div>
+        <div class="k">⟨r⟩ expectation value</div><div class="v" id="infoRavg">—</div>
+        <div class="k">Most probable radius</div><div class="v" id="infoRmax">—</div>
+        <div class="k">90% of probability within</div><div class="v" id="infoR90">—</div>
+        <div class="k">⟨1/r⟩ = 1/n²</div><div class="v" id="infoInvR">—</div>
+        <div class="k">Radial nodes (n − l − 1)</div><div class="v" id="infoRadial">—</div>
+        <div class="k">Angular nodes (= l)</div><div class="v" id="infoAngular">—</div>
+        <div class="k">Total nodes (= n − 1)</div><div class="v" id="infoTotal">—</div>
+        <div class="k">Max P(r)</div><div class="v" id="infoPmax">—</div>
+      </div>
+
+      <div class="explanation" id="infoExplanation">
+        Enter valid quantum numbers and click <b>Generate Orbital</b> to see details.
+      </div>
+
+      <div class="probe-box">
+        <div class="probe-title">
+          <span>Containment Sphere Probe</span>
+          <span id="containProbVal" class="probe-val">90%</span>
+        </div>
+        <div class="seg compact" id="containPresetSeg" style="--cols:4;">
+          <button data-pct="50">50%</button>
+          <button data-pct="90" class="active">90%</button>
+          <button data-pct="95">95%</button>
+          <button data-pct="99">99%</button>
+        </div>
+        <div class="range-row" style="margin-top:8px;">
+          <input type="range" id="containRange" min="5" max="99" step="1" value="90" />
+          <span id="containRadiusLabel" class="probe-radius-label">—</span>
+        </div>
+        <div class="probe-caption">
+          Radius <b id="containRadiusBohr">—</b> (<span id="containRadiusNm">—</span>) encloses <b id="containPctEcho">90%</b> of electron probability.
+        </div>
+      </div>
+    </div>
+
+    <div class="card recent-card" aria-labelledby="recentHeading">
+      <div class="card-head">
+        <div>
+          <h2 id="recentHeading">Recent Explorations</h2>
+          <p class="card-kicker">Your latest orbitals are saved in this browser.</p>
+        </div>
+        <button class="text-btn" id="clearRecentBtn" type="button" title="Clear saved recent orbitals">Clear</button>
+      </div>
+      <div id="recentOrbitals" class="recent-orbitals" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- RIGHT COLUMN: Plots -->
+  <section>
+    <div class="card">
+      <div class="card-head">
+        <h2>Radial Distribution &amp; Wavefunction</h2>
+        <div class="head-tools">
+          <div class="seg compact" id="rdfModeSeg" style="--cols:3;">
+            <button data-rdf="prob" class="active">P(r)</button>
+            <button data-rdf="wave">R(r)</button>
+            <button data-rdf="both">Both</button>
+          </div>
+          <label class="toggle-row" style="padding:0 4px;" title="Overlay the integrated probability P(r ≤ R) on a second axis">
+            <span style="font-size:12.5px;">Cumulative</span>
+            <span class="switch">
+              <input type="checkbox" id="showCDF" />
+              <span class="track"></span>
+            </span>
+          </label>
+          <button class="icon-btn" id="exportPng" title="Download the current plot as a PNG">⬇ PNG</button>
+        </div>
+      </div>
+      <div id="plotRDF"></div>
+      <div class="legend-note">
+        The curve shows the probability of finding the electron at a distance <i>r</i> from the nucleus
+        per unit radial distance. Switch to <b>R(r)</b> to inspect the raw signed radial wavefunction amplitude
+        and zero-crossing nodes, or <b>Both</b> to compare both curves simultaneously.
+        Vertical dashed lines mark <b>radial nodes</b> where P(r) = 0.
+        The red marker shows the <b>most probable radius</b>, the global maximum of P(r).
+        Switch on <b>Cumulative</b> to add the running total P(r ≤ R) on the right-hand axis — it rises
+        from 0 to 1 and shows how much of the electron's probability lies inside a given sphere.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Wavefunction Cross-Section</h2>
+        <div class="head-tools">
+          <div class="seg compact" id="crossModeSeg">
+            <button data-cross="psi" class="active">ψ (signed)</button>
+            <button data-cross="density">|ψ|²</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="seg" id="planeSeg" style="--cols:3;">
+        <button data-plane="xz" class="active">xz plane</button>
+        <button data-plane="xy">xy plane</button>
+        <button data-plane="yz">yz plane</button>
+      </div>
+
+      <div id="plotCross" style="margin-top:10px;"></div>
+
+      <div class="legend-note">
+        A true slice through the wavefunction: blue means <b>ψ &gt; 0</b>, pink means <b>ψ &lt; 0</b>,
+        and dark regions are close to zero. The sign flips across every node, which is exactly what
+        makes bonding and antibonding combinations possible. The colour ramp is compressed towards
+        zero (the numbers on the bar are still exact) so that faint outer shells stay visible
+        next to the bright central peak.
+        The most informative plane is selected automatically for each orbital; some planes are pure
+        <b>nodal planes</b> where ψ vanishes identically (for example xz for the 3d<sub>xy</sub> orbital),
+        and the plot says so when you pick one.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>3D Orbital Visualization — Isosurface &amp; Probability Cloud</h2>
+        <div class="head-tools">
+          <div class="seg compact" id="cameraSeg" style="--cols:4;">
+            <button data-cam="iso" class="active" title="Isometric 3/4 view">Iso</button>
+            <button data-cam="top" title="Top view (XY)">Top</button>
+            <button data-cam="front" title="Front view (XZ)">Front</button>
+            <button data-cam="side" title="Side view (YZ)">Side</button>
+          </div>
+          <button class="icon-btn" id="resetCamBtn" title="Reset Camera view and zoom">↺ Reset</button>
+          <button class="icon-btn" id="export3d" title="Download the current 3D view as a PNG">⬇ PNG</button>
+        </div>
+      </div>
+      <div id="cloud3d">
+        <div class="cloud-overlay" id="cloudOverlay" hidden>
+          <div class="spinner"></div>
+          <div id="cloudProgress">Sampling…</div>
+        </div>
+      </div>
+      <div class="legend-note">
+        <b>Surface view</b> (default): isosurface of |ψ| at the chosen level of its maximum — the classic
+        textbook lobes.
+        <span style="color:#4cc9f0;">■ ψ &gt; 0</span>
+        <span style="color:#f72585;">■ ψ &lt; 0</span>
+        — the sign of the wavefunction matters for bonding and interference.
+        Lower the level to reveal faint outer lobes (e.g. 3s at 2–5%).
+        <br />
+        <b>Density view</b>: each point is sampled with probability proportional to the true density
+        |ψ|² = |R<sub>nℓ</sub>(r)|² |Y<sub>ℓ</sub><sup>m</sup>(θ,φ)|².
+        This is a probability density, not an electron path. Drag to rotate, scroll to zoom.
+      </div>
+    </div>
+  </section>
+
+  <!-- FULL-WIDTH SECTION: Energy Levels, Bohr Model & Optical Spectra -->
+  <section class="card wide-section" id="energySpectraSection">
+    <div class="card-head wide-head">
+      <div>
+        <h2>⚛ Energy Levels, Bohr Model &amp; Hydrogen Emission Spectra</h2>
+        <p class="section-desc">
+          Quantum electronic transitions between states <i>n<sub>i</sub></i> and <i>n<sub>f</sub></i>,
+          governed by the Rydberg formula $\Delta E = h\nu = |E_i - E_f|$.
+        </p>
+      </div>
+      <div class="head-tools">
+        <span class="badge active-badge" id="energyActiveBadge">n=2 (−3.40 eV)</span>
+        <button class="icon-btn" id="animateBohrBtn" title="Play visual Bohr orbit transition &amp; photon emission animation">▶ Animate Transition</button>
+      </div>
+    </div>
+
+    <div class="energy-spectra-grid">
+      <!-- COLUMN 1: Energy Level Ladder -->
+      <div class="sub-panel">
+        <div class="sub-panel-head">
+          <h3>Quantized Energy Ladder</h3>
+          <span class="hint">Click rung to jump</span>
+        </div>
+        <div class="energy-ladder" id="energyLadder"></div>
+        <div class="ladder-stats">
+          <div class="stat-row"><span class="k">Ionization Potential:</span> <span class="v">13.606 eV</span></div>
+          <div class="stat-row"><span class="k">Active State Binding:</span> <span class="v" id="activeIonEnergy">3.40 eV</span></div>
+          <div class="stat-row"><span class="k">Shell Capacity (2n²):</span> <span class="v" id="activeShellCap">8 electrons</span></div>
+        </div>
+      </div>
+
+      <!-- COLUMN 2: Bohr Atom Schematic & Optical Spectrogram -->
+      <div class="sub-panel center-panel">
+        <div class="sub-panel-head">
+          <h3>Bohr Atom Orbit &amp; Optical Spectrogram</h3>
+          <span class="badge" id="bohrTransitionBadge">3 → 2 (Emission)</span>
+        </div>
+
+        <!-- 2D Bohr Atom SVG -->
+        <div class="bohr-schematic-wrap">
+          <svg id="bohrSvg" viewBox="-180 -180 360 360" class="bohr-svg">
+            <defs>
+              <radialGradient id="nucleusGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#ffffff" />
+                <stop offset="60%" stop-color="#ffd166" />
+                <stop offset="100%" stop-color="#ff9f1c" />
+              </radialGradient>
+              <filter id="glowFilter" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+            </defs>
+            <g id="bohrOrbitsGroup"></g>
+            <circle cx="0" cy="0" r="9" fill="url(#nucleusGrad)" filter="url(#glowFilter)" />
+            <text x="0" y="3.5" text-anchor="middle" fill="#0b1020" font-size="9" font-weight="bold">+1</text>
+            <!-- Animated photon wave packet -->
+            <path id="photonWave" d="" fill="none" stroke="#ff2e88" stroke-width="2.5" opacity="0" filter="url(#glowFilter)" />
+            <!-- Electron on orbit -->
+            <circle id="bohrElectron" cx="0" cy="0" r="5.5" fill="#ffffff" filter="url(#glowFilter)" />
+          </svg>
+        </div>
+
+        <!-- Optical Spectrogram Bar -->
+        <div class="spectrogram-wrap">
+          <div class="spectrogram-label-row">
+            <span>Optical Spectrogram (Visible: 380–750 nm)</span>
+            <span id="spectrogramHoverInfo" class="hint">Click any line to tune transition</span>
+          </div>
+          <div class="spectrogram-bar" id="spectrogramBar">
+            <div class="spectrogram-rainbow"></div>
+            <!-- Clickable Balmer Spectral Lines -->
+            <div class="spec-line" data-line="3" data-wl="656.3" style="left:74.7%;background-color:#ff1744;" title="Hα (656.3 nm) n=3 → 2"><span class="spec-tag">Hα</span></div>
+            <div class="spec-line" data-line="4" data-wl="486.1" style="left:28.7%;background-color:#00e5ff;" title="Hβ (486.1 nm) n=4 → 2"><span class="spec-tag">Hβ</span></div>
+            <div class="spec-line" data-line="5" data-wl="434.0" style="left:14.6%;background-color:#651fff;" title="Hγ (434.0 nm) n=5 → 2"><span class="spec-tag">Hγ</span></div>
+            <div class="spec-line" data-line="6" data-wl="410.2" style="left:8.2%;background-color:#7c4dff;" title="Hδ (410.2 nm) n=6 → 2"><span class="spec-tag">Hδ</span></div>
+            <div class="spec-line" data-line="7" data-wl="397.0" style="left:4.6%;background-color:#8c52ff;" title="Hε (397.0 nm) n=7 → 2"><span class="spec-tag">Hε</span></div>
+            <!-- Active wavelength marker pointer -->
+            <div class="spec-marker" id="specMarker" style="left:74.7%;"></div>
+          </div>
+          <div class="spectrogram-ticks">
+            <span>380 nm (UV)</span>
+            <span>450 nm (Blue)</span>
+            <span>520 nm (Green)</span>
+            <span>590 nm (Yellow)</span>
+            <span>650 nm (Red)</span>
+            <span>750 nm (IR)</span>
+          </div>
+        </div>
+
+        <!-- Quick Series Filter -->
+        <div class="series-nav">
+          <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block;">Select Series:</label>
+          <div class="seg compact" id="spectralSeriesSeg" style="--cols:5;">
+            <button data-series="1">Lyman (UV)</button>
+            <button data-series="2" class="active">Balmer (Vis)</button>
+            <button data-series="3">Paschen (IR)</button>
+            <button data-series="4">Brackett (IR)</button>
+            <button data-series="5">Pfund (IR)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMN 3: Transition Dynamics, Selection Rules & Photon Calculator -->
+      <div class="sub-panel right-panel">
+        <div class="sub-panel-head">
+          <h3>Transition Dynamics &amp; Photon Physics</h3>
+          <span class="hint">ΔE = hν = hc/λ</span>
+        </div>
+
+        <div class="transition-grid">
+          <div>
+            <label for="transitionNi" class="field-label">Initial state <i>n<sub>i</sub></i></label>
+            <select id="transitionNi" class="select-field"></select>
+          </div>
+          <div>
+            <label for="transitionNf" class="field-label">Final state <i>n<sub>f</sub></i></label>
+            <select id="transitionNf" class="select-field"></select>
+          </div>
+        </div>
+
+        <!-- Selection rule badge -->
+        <div id="selectionRuleBox" class="selection-rule-box allowed">
+          <div class="rule-header">
+            <span class="rule-icon" id="ruleIcon">✔</span>
+            <span class="rule-title" id="ruleTitle">Dipole Selection Rule</span>
+          </div>
+          <div class="rule-desc" id="ruleDesc">Loading selection status…</div>
+        </div>
+
+        <!-- Spectral result card -->
+        <div id="spectralResultCard" class="spectral-card">
+          <div class="spectral-row">
+            <div class="spectral-swatch-box">
+              <div id="spectralColorSwatch" class="spectral-swatch"></div>
+              <span id="spectralRegionBadge" class="badge">Visible</span>
+            </div>
+            <div class="spectral-info">
+              <div id="spectralLineTitle" class="spectral-title">H-alpha (Hα)</div>
+              <div class="spectral-sub">
+                Wavelength: <b id="spectralWl">656.3 nm</b> · <span id="spectralFreq">456.8 THz</span>
+              </div>
+              <div class="spectral-sub">
+                Energy: <b id="spectralDeltaE">1.89 eV</b> (<span id="spectralDeltaEaJ">0.303 aJ</span>)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Extended Photon Metrics -->
+        <div class="photon-metrics-grid">
+          <div class="metric-card">
+            <span class="m-k">Wavelength (Å)</span>
+            <span class="m-v" id="photonAngstrom">6563 Å</span>
+          </div>
+          <div class="metric-card">
+            <span class="m-k">Wavenumber ν̃</span>
+            <span class="m-v" id="photonWavenumber">15233 cm⁻¹</span>
+          </div>
+          <div class="metric-card">
+            <span class="m-k">Photon Momentum p</span>
+            <span class="m-v" id="photonMomentum">1.01×10⁻²⁷ kg·m/s</span>
+          </div>
+          <div class="metric-card">
+            <span class="m-k">Transition Type</span>
+            <span class="m-v" id="photonTypeLabel" style="color:var(--good);">Spontaneous Emission</span>
+          </div>
+        </div>
+
+        <div class="jump-actions">
+          <button class="btn btn-outline" id="jumpNiBtn">View Upper State (n<sub id="jumpNiSub">3</sub>)</button>
+          <button class="btn btn-outline" id="jumpNfBtn">View Lower State (n<sub id="jumpNfSub">2</sub>)</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Hydrogen Orbital Visualizer · Analytical hydrogen wavefunctions · Plotly.js + Three.js
+  <br />
+  <span class="shortcut-hint">⌨ ← / → cycle presets</span>
+  <span class="shortcut-hint">⌨ R random orbital</span>
+</footer>
+
+<div id="toastHost" aria-live="polite"></div>
+
+<dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+  <div class="dialog-head">
+    <div>
+      <p class="eyebrow">Quick guide</p>
+      <h2 id="helpTitle">Explore hydrogen orbitals with confidence</h2>
+    </div>
+    <button class="icon-btn" id="closeHelpBtn" type="button" aria-label="Close help">✕</button>
+  </div>
+  <div class="help-grid">
+    <section>
+      <h3>Start here</h3>
+      <p>Choose a preset, adjust <i>n</i>, <i>l</i>, and m<sub>ℓ</sub>, then generate. The controls automatically keep quantum numbers valid.</p>
+    </section>
+    <section>
+      <h3>Read the views</h3>
+      <p>Use P(r) for radial likelihood, the cross-section for nodes and phase, and the 3D surface or cloud for spatial shape.</p>
+    </section>
+    <section>
+      <h3>Shortcuts</h3>
+      <dl class="shortcut-list">
+        <div><dt>← / →</dt><dd>Previous / next preset</dd></div>
+        <div><dt>R</dt><dd>Random valid orbital</dd></div>
+        <div><dt>?</dt><dd>Open this guide</dd></div>
+        <div><dt>Esc</dt><dd>Close this guide</dd></div>
+      </dl>
+    </section>
+  </div>
+  <form method="dialog" class="dialog-footer"><button class="btn" type="submit">Got it</button></form>
+</dialog>
+
+<!-- Application code: shared helpers → physics → 3D → plots → UI -->
+<script src="js/utils.js"></script>
+<script src="js/quantum.js"></script>
+<script src="js/cloud3d.js"></script>
+<script src="js/plots.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
