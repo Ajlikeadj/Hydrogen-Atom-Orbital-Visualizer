@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/Atomic%20Visualizer.html"
+      "destination": "/idk2.html"
     }
   ]
 }
