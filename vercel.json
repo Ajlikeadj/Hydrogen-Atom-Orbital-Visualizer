@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/Atomic%20Visualizer.html"
+    }
+  ]
+}
